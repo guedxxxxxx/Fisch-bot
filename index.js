@@ -82,7 +82,7 @@ client.once('ready', () => {
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
-  if (message.content === '!fischshop') {
+  if (message.content === '!fisch') {
     const button = new ButtonBuilder()
       .setCustomId('open_menu')
       .setLabel('Select Your Product')
