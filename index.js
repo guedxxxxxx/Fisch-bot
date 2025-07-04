@@ -1,46 +1,44 @@
-const {
-  Client,
-  GatewayIntentBits,
-  Partials,
-  ChannelType,
-  PermissionsBitField,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  StringSelectMenuBuilder
-} = require('discord.js');
-
+const { Client, GatewayIntentBits, Partials, ChannelType, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 require('dotenv').config();
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ],
-  partials: [Partials.Channel]
-});
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: [Partials.Channel] });
 
-const GUEDX_ID = '955969285686181898';
+const GUEDX_ID = '955969285686181898'; // Support user ID
 const LTC_ADDRESS = 'ltc1qr3lqtfc4em5mkfjrhjuh838nnhnpswpfxtqsu8';
 
-const userTickets = new Map();
-const userOrders = new Map();
-const userItems = new Map();
-const userEmbeds = new Map();
+const userTickets = new Map();  // userId => channelId
+const userOrders = new Map();   // userId => totalPrice (Robux)
+const userItems = new Map();    // userId => [{name, emoji, price}]
+const userEmbeds = new Map();   // userId => messageId of ticket embed
 
 const PRICES = {
-  fishes: 20,
-  money: 20,
-  relics: 20,
-  totems: 20,
-  rods: 20
+  fishes: {
+    'ss_nessie': 20, 'ss_phantom_megalodon': 15, 'megalodon': 5, 'ancient_megalodon': 7, 'northstar_serpent': 10, 'whale_shark': 5, 'kraken': 10, 'orca': 10
+  },
+  money: 20,      // per million
+  relics: 20,     // per 100 relics
+  totems: 40,     // per 5 totems
+  rods: {
+    'rod_of_the_depths': 50, 'trident_rod': 60, 'heavens_rod': 55, 'kraken_rod': 55, 'poseidon_rod': 50, 'great_rod_of_oscar': 50, 'ethereal_prism_rod': 60, 'tempest_rod': 55
+  }
 };
 
-const moneyOptions = [
-  '1 Million', '5 Million', '10 Million', '20 Million',
-  '30 Million', '40 Million', '50 Million'
-];
+const GAMEPASS_LINKS = {
+  5: ['https://www.roblox.com/game-pass/31127384/Donate'],
+  7: ['https://www.roblox.com/game-pass/31127094/Donate'],
+  10: ['https://www.roblox.com/game-pass/31127528/Donate'],
+  15: ['https://www.roblox.com/game-pass/31127845/Donate'],
+  20: ['https://www.roblox.com/game-pass/31168454/Donate'],
+  30: ['https://www.roblox.com/game-pass/1033147082/30'],
+  40: ['https://www.roblox.com/game-pass/1027394973/40'],
+  50: ['https://www.roblox.com/game-pass/1031209691/50'],
+  55: ['https://www.roblox.com/game-pass/1031209691/50'], // treated as 50
+  60: ['https://www.roblox.com/game-pass/1033311218/60'],
+  100: ['https://www.roblox.com/game-pass/31588015/Big-Donation'],
+  200: ['https://www.roblox.com/game-pass/1028527085/200'],
+  300: ['https://www.roblox.com/game-pass/1032509615/300'],
+  400: ['https://www.roblox.com/game-pass/1027496860/400']
+};
 
 const categories = [
   { label: 'Fishes', value: 'fishes', emoji: '🐟' },
@@ -52,23 +50,66 @@ const categories = [
 
 const products = {
   fishes: [
-    'SS Nessie', 'SS Phantom Megalodon', 'Megalodon', 'Ancient Megalodon',
-    'Northstar Serpent', 'Whale Shark', 'Ancient Depths Serpent', 'Kraken', 'Orca'
+    { label: 'SS Nessie', value: 'ss_nessie', emoji: '🐟' },
+    { label: 'SS Phantom Megalodon', value: 'ss_phantom_megalodon', emoji: '🐟' },
+    { label: 'Megalodon', value: 'megalodon', emoji: '🐟' },
+    { label: 'Ancient Megalodon', value: 'ancient_megalodon', emoji: '🐟' },
+    { label: 'Northstar Serpent', value: 'northstar_serpent', emoji: '🐟' },
+    { label: 'Whale Shark', value: 'whale_shark', emoji: '🐟' },
+    { label: 'Kraken', value: 'kraken', emoji: '🐟' },
+    { label: 'Orca', value: 'orca', emoji: '🐟' }
   ],
-  relics: ['100 Relics', '500 Relics', '1000 Relics', '1500 Relics', '2000 Relics'],
-  totems: ['5 Totems', '10 Totems', '15 Totems', '20 Totems', '25 Totems', '30 Totems'],
+  money: [
+    { label: '1 Million', value: '1_million', emoji: '💰' },
+    { label: '5 Million', value: '5_million', emoji: '💰' },
+    { label: '10 Million', value: '10_million', emoji: '💰' },
+    { label: '20 Million', value: '20_million', emoji: '💰' },
+    { label: '30 Million', value: '30_million', emoji: '💰' },
+    { label: '40 Million', value: '40_million', emoji: '💰' },
+    { label: '50 Million', value: '50_million', emoji: '💰' }
+  ],
+  relics: [
+    { label: '100 Relics', value: '100_relics', emoji: '🗿' },
+    { label: '500 Relics', value: '500_relics', emoji: '🗿' },
+    { label: '1000 Relics', value: '1000_relics', emoji: '🗿' },
+    { label: '1500 Relics', value: '1500_relics', emoji: '🗿' },
+    { label: '2000 Relics', value: '2000_relics', emoji: '🗿' }
+  ],
+  totems: [
+    { label: '5 Totems', value: '5_totems', emoji: '🪔' },
+    { label: '10 Totems', value: '10_totems', emoji: '🪔' },
+    { label: '15 Totems', value: '15_totems', emoji: '🪔' },
+    { label: '20 Totems', value: '20_totems', emoji: '🪔' },
+    { label: '25 Totems', value: '25_totems', emoji: '🪔' },
+    { label: '30 Totems', value: '30_totems', emoji: '🪔' }
+  ],
   rods: [
-    'Rod of the Depths', 'Trident Rod', "Heaven's Rod", 'Kraken Rod', 'Poseidon Rod',
-    'Great Rod of Oscar', 'Ethereal Prism Rod', 'Tempest Rod'
+    { label: 'Rod of the Depths', value: 'rod_of_the_depths', emoji: '🎣' },
+    { label: 'Trident Rod', value: 'trident_rod', emoji: '🎣' },
+    { label: "Heaven's Rod", value: 'heavens_rod', emoji: '🎣' },
+    { label: 'Kraken Rod', value: 'kraken_rod', emoji: '🎣' },
+    { label: 'Poseidon Rod', value: 'poseidon_rod', emoji: '🎣' },
+    { label: 'Great Rod of Oscar', value: 'great_rod_of_oscar', emoji: '🎣' },
+    { label: 'Ethereal Prism Rod', value: 'ethereal_prism_rod', emoji: '🎣' },
+    { label: 'Tempest Rod', value: 'tempest_rod', emoji: '🎣' }
   ]
 };
 
-function toRobuxLinkPlaceholder() {
-  return 'To be applied';
+function getPrice(category, value) {
+  if (category === 'fishes') return PRICES.fishes[value] || 20;
+  if (category === 'money') return parseInt(value.split('_')[0]) * PRICES.money;
+  if (category === 'relics') return (parseInt(value.split('_')[0]) / 100) * PRICES.relics;
+  if (category === 'totems') return (parseInt(value.split('_')[0]) / 5) * PRICES.totems;
+  if (category === 'rods') return PRICES.rods[value] || 50;
+  return 20;
 }
 
-function formatPrice(price) {
-  return price ? `${price} Robux` : 'To be applied';
+function robuxToDollars(robux) {
+  return (robux * 0.0125).toFixed(2);
+}
+
+function getGamepassLinksForPrice(price) {
+  return GAMEPASS_LINKS[price] || [];
 }
 
 client.once('ready', () => {
@@ -77,7 +118,6 @@ client.once('ready', () => {
 
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
-
   if (message.content === '!fischshop') {
     const button = new ButtonBuilder()
       .setCustomId('open_menu')
@@ -88,12 +128,13 @@ client.on('messageCreate', async message => {
 
     await message.channel.send({
       content:
-`🎣 **Welcome to the Fisch Shop!** 🎣
+`🎣 Welcome to the Fisch Shop! 🎣
 
-We sell fishes, rods, money and everything else.
-No nonsense, no levels — just clean trading.
+We sell fishes, rods, money, relics, and aurora totems.
 
-📦 Click the button below to select your category and start buying.`,
+💸 Prices will appear once you select your products.
+
+📦 Click the button below to select a category and start buying.`,
       components: [row]
     });
   }
@@ -113,9 +154,7 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.customId === 'close_ticket') {
       const channel = interaction.channel;
-
       await interaction.reply({ content: '✅ Ticket will be closed.', ephemeral: true });
-
       userTickets.forEach((chId, userId) => {
         if (chId === channel.id) {
           userTickets.delete(userId);
@@ -124,7 +163,6 @@ client.on('interactionCreate', async interaction => {
           userEmbeds.delete(userId);
         }
       });
-
       await channel.delete();
     }
 
@@ -141,40 +179,11 @@ client.on('interactionCreate', async interaction => {
 
     if (selectedId === 'category_select') {
       const selectedCategory = interaction.values[0];
-      const guild = interaction.guild;
-
-      if (selectedCategory === 'money') {
-        const moneyMenuOptions = moneyOptions.map(label => ({
-          label,
-          value: label.toLowerCase().replace(/ /g, '_'),
-          emoji: '💰'
-        }));
-
-        const moneyMenu = new StringSelectMenuBuilder()
-          .setCustomId('product_select')
-          .setPlaceholder('Select money amount')
-          .addOptions(moneyMenuOptions);
-
-        const row = new ActionRowBuilder().addComponents(moneyMenu);
-        await interaction.update({ content: 'Select the money amount:', components: [row] });
-        return;
-      }
-
-      const list = products[selectedCategory] || [];
-
-      const options = list.map(label => ({
-        label,
-        value: label.toLowerCase().replace(/ /g, '_'),
-        emoji: selectedCategory === 'fishes' ? '🐟' :
-               selectedCategory === 'relics' ? '🗿' :
-               selectedCategory === 'totems' ? '🪔' :
-               selectedCategory === 'rods' ? '🎣' : '🛒'
-      }));
-
+      const productList = products[selectedCategory] || [];
       const menu = new StringSelectMenuBuilder()
         .setCustomId('product_select')
         .setPlaceholder(`Select a ${selectedCategory.slice(0, -1)}`)
-        .addOptions(options);
+        .addOptions(productList);
 
       const row = new ActionRowBuilder().addComponents(menu);
       await interaction.update({ content: `Select a ${selectedCategory.slice(0, -1)}:`, components: [row] });
@@ -183,53 +192,60 @@ client.on('interactionCreate', async interaction => {
     if (selectedId === 'product_select') {
       const user = interaction.user;
       const guild = interaction.guild;
-      const selectedProduct = interaction.values[0];
-      const displayName = selectedProduct.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const selectedValue = interaction.values[0];
 
-      const productPrice = 20;
+      const category = categories.find(cat => products[cat.value].some(p => p.value === selectedValue))?.value;
+      if (!category) {
+        await interaction.reply({ content: 'Product category not found.', ephemeral: true });
+        return;
+      }
 
-      const productEntry = { name: displayName, emoji: '🛒', price: productPrice };
       const prevList = userItems.get(user.id) || [];
-      const newList = [...prevList, productEntry];
+      const alreadyAdded = prevList.find(item => item.value === selectedValue);
+
+      if (alreadyAdded) {
+        await interaction.reply({
+          content: `⚠️ You chose the same product twice. After buying its gamepass on the link below, please remove it from your Roblox inventory before purchasing it again.`,
+          ephemeral: true
+        });
+        return;
+      }
+
+      const price = getPrice(category, selectedValue);
+      const productObj = products[category].find(p => p.value === selectedValue);
+      const newList = [...prevList, { ...productObj, price }];
       userItems.set(user.id, newList);
 
-      let total = newList.reduce((sum, item) => sum + item.price, 0);
+      const total = newList.reduce((acc, item) => acc + item.price, 0);
       userOrders.set(user.id, total);
 
-      const robuxLink = toRobuxLinkPlaceholder();
+      const productListText = newList.map(p => `${p.emoji} ${p.label} = ${p.price} Robux ($${robuxToDollars(p.price)})`).join('\n');
+      const uniquePrices = [...new Set(newList.map(i => i.price))];
 
-      const productListText = newList.map(p => `${p.emoji} ${p.name} = ${formatPrice(p.price)}`).join('\n');
+      let gamepassLinksText = '';
+      uniquePrices.forEach(price => {
+        const links = getGamepassLinksForPrice(price);
+        if (links.length > 0) {
+          const linksText = links.map(l => `[${price} Robux](${l})`).join(' ');
+          gamepassLinksText += `\n${linksText}`;
+        }
+      });
 
       const embed = {
         title: '🛒 Order Summary',
-        description: `${productListText}\n\n📦 Total: ${formatPrice(total)}`,
+        description: `${productListText}\n\n📦 Total: ${total} Robux ($${robuxToDollars(total)})\n${gamepassLinksText}`,
         color: 0x00b0f4
       };
 
       const paymentEmbed = {
         title: '💳 Payment Information',
-        description:
-`Please wait for support before paying.
-
-**Payment methods:**  
-🔸 LTC: \`${LTC_ADDRESS}\`  
-🔸 Robux: ${robuxLink}
-
-Support will join in 1–2 minutes.`,
+        description: `**Payment methods:**   🔸 LTC: ${LTC_ADDRESS}\n\nSupport will join in 1–2 minutes.`,
         color: 0xffd700,
         thumbnail: { url: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png' }
       };
 
-      const closeButton = new ButtonBuilder()
-        .setCustomId('close_ticket')
-        .setLabel('Close Ticket')
-        .setStyle(ButtonStyle.Danger);
-
-      const copyLTCButton = new ButtonBuilder()
-        .setCustomId('copy_ltc')
-        .setLabel('Copy LTC Address')
-        .setStyle(ButtonStyle.Secondary);
-
+      const closeButton = new ButtonBuilder().setCustomId('close_ticket').setLabel('Close Ticket').setStyle(ButtonStyle.Danger);
+      const copyLTCButton = new ButtonBuilder().setCustomId('copy_ltc').setLabel('Copy LTC Address').setStyle(ButtonStyle.Secondary);
       const buttonsRow = new ActionRowBuilder().addComponents(closeButton, copyLTCButton);
 
       const existingChannelId = userTickets.get(user.id);
@@ -237,9 +253,8 @@ Support will join in 1–2 minutes.`,
 
       if (existingChannel) {
         const embedMsgId = userEmbeds.get(user.id);
-        const embedMsg = await existingChannel.messages.fetch(embedMsgId);
-
-        await embedMsg.edit({ embeds: [embed, paymentEmbed], components: [buttonsRow] });
+        const embedMsg = await existingChannel.messages.fetch(embedMsgId).catch(() => null);
+        if (embedMsg) await embedMsg.edit({ embeds: [embed, paymentEmbed], components: [buttonsRow] });
         await interaction.reply({ content: '✅ Product added to your order!', ephemeral: true });
       } else {
         const channel = await guild.channels.create({
@@ -260,17 +275,13 @@ Support will join in 1–2 minutes.`,
 
         userTickets.set(user.id, channel.id);
         userEmbeds.set(user.id, message.id);
-
         await interaction.reply({ content: '✅ Ticket created and product added!', ephemeral: true });
       }
 
       const moreMenu = new StringSelectMenuBuilder()
         .setCustomId('additional_purchase')
         .setPlaceholder('Anything else?')
-        .addOptions([
-          { label: 'Yes', value: 'yes', emoji: '👍' },
-          { label: 'No', value: 'no', emoji: '✖️' }
-        ]);
+        .addOptions([{ label: 'Yes', value: 'yes', emoji: '👍' }, { label: 'No', value: 'no', emoji: '✖️' }]);
 
       const moreRow = new ActionRowBuilder().addComponents(moreMenu);
       await interaction.followUp({ content: 'Do you want to purchase anything else?', components: [moreRow], ephemeral: true });
@@ -279,13 +290,9 @@ Support will join in 1–2 minutes.`,
     if (selectedId === 'additional_purchase') {
       const choice = interaction.values[0];
       if (choice === 'no') {
-        await interaction.update({ content: '✅ Your ticket has been successfully created!', components: [] });
+        await interaction.update({ content: '✅ Your ticket has been successfully created! Our support will contact you soon.', components: [] });
       } else {
-        const menu = new StringSelectMenuBuilder()
-          .setCustomId('category_select')
-          .setPlaceholder('Choose a category')
-          .addOptions(categories);
-
+        const menu = new StringSelectMenuBuilder().setCustomId('category_select').setPlaceholder('Choose a category').addOptions(categories);
         const row = new ActionRowBuilder().addComponents(menu);
         await interaction.update({ content: 'Select a category:', components: [row] });
       }
