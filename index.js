@@ -94,18 +94,16 @@ client.on('messageCreate', async message => {
       content:
 `🎣 **Welcome to the Fisch Shop!** 🎣
 
-We sell fishes to trade for rods and other items.  
-**We don’t do levels or adventure hype — just straight-up trading.**
-
-💸 **Special promotions:**  
-- Buy more than 3 products and pay a flat rate of 50 Robux.  
-- Prices will be updated soon; for now, see prices as “To be applied.”  
+We sell fishes, rods, money, relics, aurora totems, and more.  
+**We don’t do levels or adventure hype — just straightforward trading.**
 
 📦 Click the button below to select your category and start buying.`,
       components: [row]
     });
   }
 });
+
+// ...rest of the code remains unchanged
 
 client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
@@ -171,12 +169,6 @@ client.on('interactionCreate', async interaction => {
         return;
       }
 
-      if (selectedCategory === 'everything') {
-        // You said no levels or everything option, so ignore this.
-        await interaction.reply({ content: 'No everything bundle available.', ephemeral: true });
-        return;
-      }
-
       // Other categories
       const list = products[selectedCategory] || [];
 
@@ -213,10 +205,8 @@ client.on('interactionCreate', async interaction => {
       const newList = [...prevList, productEntry];
       userItems.set(user.id, newList);
 
-      // Calculate total price, promo applied if more than 3 products
+      // Calculate total price
       let total = newList.reduce((sum, item) => sum + item.price, 0);
-      if (newList.length > 3) total = 50;
-
       userOrders.set(user.id, total);
 
       // No real payment links yet, just placeholders
@@ -224,13 +214,9 @@ client.on('interactionCreate', async interaction => {
 
       const productListText = newList.map(p => `${p.emoji} ${p.name} = ${formatPrice(p.price)}`).join('\n');
 
-      const promoNote = newList.length > 3
-        ? `💸 Promo: More than 3 products, pay flat 50 Robux`
-        : '';
-
       const embed = {
         title: '🛒 Order Summary',
-        description: `${productListText}\n\n📦 Total: ${formatPrice(total)}\n${promoNote}`,
+        description: `${productListText}\n\n📦 Total: ${formatPrice(total)}`,
         color: 0x00b0f4
       };
 
