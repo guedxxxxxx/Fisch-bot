@@ -19,21 +19,33 @@ const client = new Client({
 const GUEDX_ID = '955969285686181898';
 const LTC_ADDRESS = 'ltc1qr3lqtfc4em5mkfjrhjuh838nnhnpswpfxtqsu8';
 
-const userTickets = new Map();
-const userOrders = new Map();
-const userItems = new Map();
-const userEmbeds = new Map();
+const userTickets = new Map(); // userId => channelId
+const userOrders = new Map();  // userId => [{name, emoji, price, quantity}]
+const userEmbeds = new Map();  // userId => messageId
 
 const PRICES = {
   fishes: {
-    'ss_nessie': 20,
-    'ss_phantom_megalodon': 15,
-    'megalodon': 5,
-    'ancient_megalodon': 7,
-    'northstar_serpent': 10,
-    'whale_shark': 5,
-    'kraken': 10,
-    'orca': 10
+    ss_nessie: 20,
+    ss_phantom_megalodon: 15,
+    megalodon: 5,
+    ancient_megalodon: 7,
+    northstar_serpent: 10,
+    whale_shark: 5,
+    kraken: 10,
+    orca: 10
+  },
+  money: 20,
+  relics: 20,
+  totems: 40,
+  rods: {
+    rod_of_the_depths: 50,
+    trident_rod: 60,
+    heavens_rod: 55,
+    kraken_rod: 55,
+    poseidon_rod: 50,
+    great_rod_of_oscar: 50,
+    ethereal_prism_rod: 60,
+    tempest_rod: 55
   }
 };
 
@@ -46,7 +58,7 @@ const GAMEPASS_LINKS = {
   30: ['https://www.roblox.com/game-pass/1033147082/30'],
   40: ['https://www.roblox.com/game-pass/1027394973/40'],
   50: ['https://www.roblox.com/game-pass/1031209691/50'],
-  55: ['https://www.roblox.com/game-pass/1031209691/50'], // reuse 50 for 55
+  55: ['https://www.roblox.com/game-pass/1031209691/50'],
   60: ['https://www.roblox.com/game-pass/1033311218/60'],
   100: ['https://www.roblox.com/game-pass/31588015/Big-Donation'],
   200: ['https://www.roblox.com/game-pass/1028527085/200'],
@@ -55,7 +67,11 @@ const GAMEPASS_LINKS = {
 };
 
 const categories = [
-  { label: 'Fishes', value: 'fishes', emoji: '🐟' }
+  { label: 'Fishes', value: 'fishes', emoji: '🐟' },
+  { label: 'Money', value: 'money', emoji: '💰' },
+  { label: 'Relics', value: 'relics', emoji: '🗿' },
+  { label: 'Rods', value: 'rods', emoji: '🎣' },
+  { label: 'Aurora Totems', value: 'totems', emoji: '🪔' }
 ];
 
 const products = {
@@ -68,11 +84,59 @@ const products = {
     { label: 'Whale Shark', value: 'whale_shark', emoji: '🐟' },
     { label: 'Kraken', value: 'kraken', emoji: '🐟' },
     { label: 'Orca', value: 'orca', emoji: '🐟' }
+  ],
+  money: [
+    { label: '1 Million', value: '1_million', emoji: '💰' },
+    { label: '5 Million', value: '5_million', emoji: '💰' },
+    { label: '10 Million', value: '10_million', emoji: '💰' },
+    { label: '20 Million', value: '20_million', emoji: '💰' },
+    { label: '30 Million', value: '30_million', emoji: '💰' },
+    { label: '40 Million', value: '40_million', emoji: '💰' },
+    { label: '50 Million', value: '50_million', emoji: '💰' }
+  ],
+  relics: [
+    { label: '100 Relics', value: '100_relics', emoji: '🗿' },
+    { label: '500 Relics', value: '500_relics', emoji: '🗿' },
+    { label: '1000 Relics', value: '1000_relics', emoji: '🗿' },
+    { label: '1500 Relics', value: '1500_relics', emoji: '🗿' },
+    { label: '2000 Relics', value: '2000_relics', emoji: '🗿' }
+  ],
+  totems: [
+    { label: '5 Totems', value: '5_totems', emoji: '🪔' },
+    { label: '10 Totems', value: '10_totems', emoji: '🪔' },
+    { label: '15 Totems', value: '15_totems', emoji: '🪔' },
+    { label: '20 Totems', value: '20_totems', emoji: '🪔' },
+    { label: '25 Totems', value: '25_totems', emoji: '🪔' },
+    { label: '30 Totems', value: '30_totems', emoji: '🪔' }
+  ],
+  rods: [
+    { label: 'Rod of the Depths', value: 'rod_of_the_depths', emoji: '🎣' },
+    { label: 'Trident Rod', value: 'trident_rod', emoji: '🎣' },
+    { label: "Heaven's Rod", value: 'heavens_rod', emoji: '🎣' },
+    { label: 'Kraken Rod', value: 'kraken_rod', emoji: '🎣' },
+    { label: 'Poseidon Rod', value: 'poseidon_rod', emoji: '🎣' },
+    { label: 'Great Rod of Oscar', value: 'great_rod_of_oscar', emoji: '🎣' },
+    { label: 'Ethereal Prism Rod', value: 'ethereal_prism_rod', emoji: '🎣' },
+    { label: 'Tempest Rod', value: 'tempest_rod', emoji: '🎣' }
   ]
 };
 
 function getPrice(category, value) {
   if (category === 'fishes') return PRICES.fishes[value] || 20;
+  if (category === 'money') {
+    // Example: '10_million' => 10 * money price(20)
+    let amount = parseInt(value.split('_')[0]);
+    return amount * PRICES.money;
+  }
+  if (category === 'relics') {
+    let amount = parseInt(value.split('_')[0]);
+    return (amount / 100) * PRICES.relics;
+  }
+  if (category === 'totems') {
+    let amount = parseInt(value.split('_')[0]);
+    return (amount / 5) * PRICES.totems;
+  }
+  if (category === 'rods') return PRICES.rods[value] || 50;
   return 20;
 }
 
@@ -81,22 +145,10 @@ function robuxToDollars(robux) {
 }
 
 function getGamepassLinksForPrice(price) {
-  return GAMEPASS_LINKS[price] || [];
-}
-
-// Split price into gamepass chunks if exact pass doesn't exist
-function splitPriceToPasses(price) {
-  const passes = Object.keys(GAMEPASS_LINKS).map(Number).sort((a,b) => b - a);
-  let remaining = price;
-  const result = [];
-  for (const pass of passes) {
-    while (remaining >= pass) {
-      result.push(pass);
-      remaining -= pass;
-    }
-  }
-  if (remaining > 0) result.push(remaining); // fallback (shouldn't happen if passes cover all)
-  return result;
+  // Returns array of links; for now assumes exact match only
+  if (GAMEPASS_LINKS[price]) return GAMEPASS_LINKS[price];
+  // TODO: implement splitting logic if no exact match found
+  return [];
 }
 
 client.once('ready', () => {
@@ -105,165 +157,211 @@ client.once('ready', () => {
 
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
+
   if (message.content === '!fischshop') {
-    const introMsg = `🎣 **Welcome to the Fisch Shop!** 🎣
+    // Welcome message before opening ticket
+    await message.channel.send(`
+🎣 **Welcome to the Fisch Shop!** 🎣
 
-Here you can buy exclusive Roblox fishes to boost your gameplay and flex your collection!  
-🛒 Select your fishes from the menu, and the total price will update automatically.
+Here you can buy fishes, rods, money, relics, and aurora totems.
 
-⚠️ **Important:** If you want to buy more than one of the same fish, you must buy the gamepass, delete it from your inventory, and then buy it again to add multiple copies.
+💸 Prices appear once you select your products.
 
-💳 Payments accepted: Robux and Litecoin (LTC). Support will assist you shortly after your order.
+⚠️ **Important:** To buy more than one of the same product,
+buy the gamepass, delete it, then buy it again.
 
-Click the button below to start selecting your fishes. Good luck! 🐠🐟🐡`;
+📦 Click the button below to start selecting your products.
+    `);
+
     const button = new ButtonBuilder()
       .setCustomId('open_menu')
-      .setLabel('Select Your Fish')
+      .setLabel('Select Your Product')
       .setStyle(ButtonStyle.Primary);
+
     const row = new ActionRowBuilder().addComponents(button);
-    await message.channel.send({ content: introMsg, components: [row] });
+    await message.channel.send({ components: [row] });
   }
 });
 
 client.on('interactionCreate', async interaction => {
-  if (interaction.isButton() && interaction.customId === 'open_menu') {
-    const menu = new StringSelectMenuBuilder()
-      .setCustomId('product_select')
-      .setPlaceholder('Choose a fish to buy')
-      .addOptions(products.fishes);
-    const row = new ActionRowBuilder().addComponents(menu);
-    await interaction.reply({ content: 'Select your fish from the list below:', components: [row], ephemeral: true });
-    return;
+  if (interaction.isButton()) {
+    if (interaction.customId === 'open_menu') {
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('category_select')
+        .setPlaceholder('Choose a category')
+        .addOptions(categories);
+      const row = new ActionRowBuilder().addComponents(menu);
+      await interaction.reply({ content: 'Select a category:', components: [row], ephemeral: true });
+    }
+
+    if (interaction.customId === 'close_ticket') {
+      const channel = interaction.channel;
+      await interaction.reply({ content: '✅ Ticket will be closed.', ephemeral: true });
+      // Clear user data
+      userTickets.forEach((chId, userId) => {
+        if (chId === channel.id) {
+          userTickets.delete(userId);
+          userOrders.delete(userId);
+          userEmbeds.delete(userId);
+        }
+      });
+      await channel.delete();
+    }
+
+    if (interaction.customId === 'copy_ltc') {
+      await interaction.reply({ content: `Copy this LTC address:\n\`${LTC_ADDRESS}\``, ephemeral: true });
+    }
   }
 
-  if (interaction.isStringSelectMenu() && interaction.customId === 'product_select') {
-    const user = interaction.user;
-    const guild = interaction.guild;
-    const fishId = interaction.values[0];
-    const fishName = products.fishes.find(f => f.value === fishId).label;
-    const fishEmoji = products.fishes.find(f => f.value === fishId).emoji;
-    const price = getPrice('fishes', fishId);
+  if (interaction.isStringSelectMenu()) {
+    const customId = interaction.customId;
 
-    // Allow multiple of same fish: just add every selection normally (no duplicate warning)
-    const currentItems = userItems.get(user.id) || [];
-    currentItems.push({ name: fishName, emoji: fishEmoji, price });
-    userItems.set(user.id, currentItems);
-
-    // Calculate total price
-    let total = currentItems.reduce((acc, item) => acc + item.price, 0);
-    if (total > 50) total = 50; // cap max price to 50 Robux for promo
-
-    userOrders.set(user.id, total);
-
-    // Prepare gamepass links for total, splitting if needed
-    let passes = [];
-    if (GAMEPASS_LINKS[total]) {
-      passes = [total];
-    } else {
-      passes = splitPriceToPasses(total);
+    if (customId === 'category_select') {
+      const selectedCategory = interaction.values[0];
+      const prodOptions = products[selectedCategory];
+      if (!prodOptions) {
+        await interaction.update({ content: 'Category not found.', components: [] });
+        return;
+      }
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('product_select')
+        .setPlaceholder(`Select a product from ${selectedCategory}`)
+        .addOptions(prodOptions);
+      const row = new ActionRowBuilder().addComponents(menu);
+      await interaction.update({ content: `Select a product from **${selectedCategory}**:`, components: [row] });
     }
 
-    const totalDollars = robuxToDollars(total);
+    else if (customId === 'product_select') {
+      const user = interaction.user;
+      const guild = interaction.guild;
+      const selectedProduct = interaction.values[0];
+      
+      // Find category of selected product
+      let selectedCategory;
+      for (const cat in products) {
+        if (products[cat].some(p => p.value === selectedProduct)) {
+          selectedCategory = cat;
+          break;
+        }
+      }
+      if (!selectedCategory) {
+        await interaction.update({ content: 'Product not found.', components: [] });
+        return;
+      }
+      
+      const productInfo = products[selectedCategory].find(p => p.value === selectedProduct);
+      const price = getPrice(selectedCategory, selectedProduct);
 
-    const orderLines = currentItems.map((item, i) => `${item.emoji} ${item.name} = ${item.price} Robux`).join('\n');
+      // Add to user's order
+      let userOrder = userOrders.get(user.id) || [];
+      // Check if product already exists, if yes, increment quantity
+      let existing = userOrder.find(p => p.value === selectedProduct);
+      if (existing) {
+        existing.quantity++;
+      } else {
+        userOrder.push({ 
+          value: selectedProduct,
+          label: productInfo.label,
+          emoji: productInfo.emoji,
+          price,
+          quantity: 1
+        });
+      }
+      userOrders.set(user.id, userOrder);
 
-    let paymentLinksText = passes.map(p => {
-      const urls = GAMEPASS_LINKS[p] || ['(No link available)'];
-      return `🔗 [Buy ${p} Robux Pass](${urls[0]})`;
-    }).join('\n');
+      // Calculate total
+      let total = 0;
+      let productListText = '';
+      for (const item of userOrder) {
+        total += item.price * item.quantity;
+        productListText += `${item.emoji} ${item.label} x${item.quantity} = ${item.price * item.quantity} robux\n`;
+      }
 
-    let warningText = '';
-    if (passes.length > 1) {
-      warningText = `⚠️ We don't have the exact pass for your total price, so you will be given multiple passes that combined equal your total.`;
-    }
+      const usd = robuxToDollars(total);
 
-    const promoText = total === 50 ? `🎉 **Promo:** You hit the max price of 50 Robux!` : '';
+      // Get gamepass links — if exact pass doesn't exist, you can later add splitting logic here
+      let links = getGamepassLinksForPrice(total);
+      let warningSplit = '';
+      if (links.length === 0) {
+        warningSplit = '⚠️ We don\'t have the exact pass for that amount. The order will be split into multiple passes to cover the total price.';
+        // TODO: Add your pass splitting logic here and update links accordingly
+      }
 
-    const orderEmbed = {
-      title: '🛒 Your Fisch Shop Order',
-      description: `${orderLines}\n\n📦 **Total:** ${total} Robux ($${totalDollars})\n${promoText}`,
-      color: 0x00b0f4
-    };
+      const embed = {
+        title: '🛒 Your Order Summary',
+        description: `${productListText}\n**Total: ${total} robux (~$${usd})**\n\n${warningSplit}`,
+        color: 0x00b0f4
+      };
 
-    const paymentEmbed = {
-      title: '💳 Payment Information',
-      description: `
+      const paymentEmbed = {
+        title: '💳 Payment Information',
+        description: `
 ⚠️ **Please wait for support to arrive before making the payment!**
 
-**Payment Methods:**
-🔸 **Litecoin (LTC):** \`${LTC_ADDRESS}\`  
-🔸 **Robux Passes:**  
-${paymentLinksText}
+**Payment methods below:**
+🔸 LTC: \`${LTC_ADDRESS}\`
 
-💬 Support will be here in 1–2 minutes to help you complete your purchase.`,
-      color: 0xffd700,
-      thumbnail: { url: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png' }
-    };
+🔸 Robux: ${links.length > 0 ? links.map((link, i) => `[Pass ${i+1}](${link})`).join('\n') : 'No direct pass link available'}
 
-    const closeButton = new ButtonBuilder()
-      .setCustomId('close_ticket')
-      .setLabel('Close Ticket')
-      .setStyle(ButtonStyle.Danger);
+🔸 Coin: Litecoin (LTC)  
+🔸 Network: LTC Mainnet
 
-    const copyLTCButton = new ButtonBuilder()
-      .setCustomId('copy_ltc')
-      .setLabel('Copy LTC Address')
-      .setStyle(ButtonStyle.Secondary);
+💬 Support will be here in 1-2 minutes to assist you.`,
+        color: 0xffd700,
+        thumbnail: { url: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png' }
+      };
 
-    const buttonsRow = new ActionRowBuilder().addComponents(closeButton, copyLTCButton);
+      const closeBtn = new ButtonBuilder()
+        .setCustomId('close_ticket')
+        .setLabel('Close Ticket')
+        .setStyle(ButtonStyle.Danger);
 
-    const existingChannelId = userTickets.get(user.id);
-    const existingChannel = existingChannelId ? guild.channels.cache.get(existingChannelId) : null;
+      const copyLTCBtn = new ButtonBuilder()
+        .setCustomId('copy_ltc')
+        .setLabel('Copy LTC Address')
+        .setStyle(ButtonStyle.Secondary);
 
-    if (existingChannel) {
-      const embedMsgId = userEmbeds.get(user.id);
-      try {
-        const embedMsg = await existingChannel.messages.fetch(embedMsgId);
-        await embedMsg.edit({ embeds: [orderEmbed, paymentEmbed], components: [buttonsRow] });
-      } catch {
-        // message might be deleted, ignore
+      const buttonsRow = new ActionRowBuilder().addComponents(closeBtn, copyLTCBtn);
+
+      // Create or update ticket channel
+      let channel = null;
+      const existingChannelId = userTickets.get(user.id);
+      if (existingChannelId) {
+        channel = guild.channels.cache.get(existingChannelId);
       }
-      await interaction.update({ content: '✅ Added your fish to the existing ticket.', components: [] });
-    } else {
-      const channel = await guild.channels.create({
-        name: `ticket-${user.username}`,
-        type: ChannelType.GuildText,
-        permissionOverwrites: [
-          { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-          { id: GUEDX_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
-        ]
-      });
 
-      const message = await channel.send({
-        content: `<@${GUEDX_ID}>`,
-        embeds: [orderEmbed, paymentEmbed],
-        components: [buttonsRow]
-      });
+      if (!channel) {
+        channel = await guild.channels.create({
+          name: `ticket-${user.username}`,
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
+            { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: GUEDX_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+          ]
+        });
+        userTickets.set(user.id, channel.id);
+      }
 
-      userTickets.set(user.id, channel.id);
-      userEmbeds.set(user.id, message.id);
+      let messageId = userEmbeds.get(user.id);
+      if (messageId) {
+        // Edit existing embed message
+        try {
+          const msg = await channel.messages.fetch(messageId);
+          await msg.edit({ embeds: [embed, paymentEmbed], components: [buttonsRow] });
+        } catch {
+          // If message can't be fetched, send new one
+          const newMsg = await channel.send({ embeds: [embed, paymentEmbed], components: [buttonsRow] });
+          userEmbeds.set(user.id, newMsg.id);
+        }
+      } else {
+        // Send new embed message
+        const msg = await channel.send({ embeds: [embed, paymentEmbed], components: [buttonsRow] });
+        userEmbeds.set(user.id, msg.id);
+      }
 
-      await interaction.update({ content: '✅ Ticket created with your order!', components: [] });
+      await interaction.update({ content: `✅ Added **${productInfo.label}** to your order. Check your ticket channel: ${channel}`, components: [] });
     }
-  }
-
-  if (interaction.isButton() && interaction.customId === 'close_ticket') {
-    const channel = interaction.channel;
-    await interaction.reply({ content: '✅ Ticket will be closed.', ephemeral: true });
-    userTickets.forEach((chId, userId) => {
-      if (chId === channel.id) {
-        userTickets.delete(userId);
-        userOrders.delete(userId);
-        userItems.delete(userId);
-        userEmbeds.delete(userId);
-      }
-    });
-    await channel.delete();
-  }
-
-  if (interaction.isButton() && interaction.customId === 'copy_ltc') {
-    await interaction.reply({ content: `Copy this LTC address:\n\`${LTC_ADDRESS}\``, ephemeral: true });
   }
 });
 
