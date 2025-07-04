@@ -9,128 +9,40 @@ const {
   ButtonStyle,
   StringSelectMenuBuilder
 } = require('discord.js');
-require('dotenv').config();
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   partials: [Partials.Channel]
 });
 
-const GUEDX_ID = '955969285686181898'; // Support user ID
+const GUEDX_ID = '955969285686181898';
 const LTC_ADDRESS = 'ltc1qr3lqtfc4em5mkfjrhjuh838nnhnpswpfxtqsu8';
 
 const userTickets = new Map(); // userId => channelId
 const userOrders = new Map();  // userId => totalRobux
-const userItems = new Map();   // userId => [{name, emoji, price}]
+const userItems = new Map();   // userId => [{name, emoji, price, quantity}]
 const userEmbeds = new Map();  // userId => messageId of ticket embed
 
-const PRICES = {
-  fishes: { ss_nessie: 20, ss_phantom_megalodon: 15, megalodon: 5, ancient_megalodon: 7, northstar_serpent: 10, whale_shark: 5, kraken: 10, orca: 10 },
-  money: 20,
-  relics: 20,
-  totems: 40,
-  rods: { rod_of_the_depths: 50, trident_rod: 60, heavens_rod: 55, kraken_rod: 55, poseidon_rod: 50, great_rod_of_oscar: 50, ethereal_prism_rod: 60, tempest_rod: 55 }
-};
-
-const categories = [
-  { label: 'Fishes', value: 'fishes', emoji: '🐟' },
-  { label: 'Money', value: 'money', emoji: '💰' },
-  { label: 'Relics', value: 'relics', emoji: '🗿' },
-  { label: 'Rods', value: 'rods', emoji: '🎣' },
-  { label: 'Aurora Totems', value: 'totems', emoji: '🪔' }
-];
-
-const products = {
-  fishes: [
-    { label: 'SS Nessie', value: 'ss_nessie', emoji: '🐟' },
-    { label: 'SS Phantom Megalodon', value: 'ss_phantom_megalodon', emoji: '🐟' },
-    { label: 'Megalodon', value: 'megalodon', emoji: '🐟' },
-    { label: 'Ancient Megalodon', value: 'ancient_megalodon', emoji: '🐟' },
-    { label: 'Northstar Serpent', value: 'northstar_serpent', emoji: '🐟' },
-    { label: 'Whale Shark', value: 'whale_shark', emoji: '🐟' },
-    { label: 'Kraken', value: 'kraken', emoji: '🐟' },
-    { label: 'Orca', value: 'orca', emoji: '🐟' }
-  ],
-  money: [
-    { label: '1 Million', value: '1_million', emoji: '💰' },
-    { label: '5 Million', value: '5_million', emoji: '💰' },
-    { label: '10 Million', value: '10_million', emoji: '💰' },
-    { label: '20 Million', value: '20_million', emoji: '💰' },
-    { label: '30 Million', value: '30_million', emoji: '💰' },
-    { label: '40 Million', value: '40_million', emoji: '💰' },
-    { label: '50 Million', value: '50_million', emoji: '💰' }
-  ],
-  relics: [
-    { label: '100 Relics', value: '100_relics', emoji: '🗿' },
-    { label: '500 Relics', value: '500_relics', emoji: '🗿' },
-    { label: '1000 Relics', value: '1000_relics', emoji: '🗿' },
-    { label: '1500 Relics', value: '1500_relics', emoji: '🗿' },
-    { label: '2000 Relics', value: '2000_relics', emoji: '🗿' }
-  ],
-  totems: [
-    { label: '5 Totems', value: '5_totems', emoji: '🪔' },
-    { label: '10 Totems', value: '10_totems', emoji: '🪔' },
-    { label: '15 Totems', value: '15_totems', emoji: '🪔' },
-    { label: '20 Totems', value: '20_totems', emoji: '🪔' },
-    { label: '25 Totems', value: '25_totems', emoji: '🪔' },
-    { label: '30 Totems', value: '30_totems', emoji: '🪔' }
-  ],
-  rods: [
-    { label: 'Rod of the Depths', value: 'rod_of_the_depths', emoji: '🎣' },
-    { label: 'Trident Rod', value: 'trident_rod', emoji: '🎣' },
-    { label: "Heaven's Rod", value: 'heavens_rod', emoji: '🎣' },
-    { label: 'Kraken Rod', value: 'kraken_rod', emoji: '🎣' },
-    { label: 'Poseidon Rod', value: 'poseidon_rod', emoji: '🎣' },
-    { label: 'Great Rod of Oscar', value: 'great_rod_of_oscar', emoji: '🎣' },
-    { label: 'Ethereal Prism Rod', value: 'ethereal_prism_rod', emoji: '🎣' },
-    { label: 'Tempest Rod', value: 'tempest_rod', emoji: '🎣' }
-  ]
-};
-
-function getPrice(category, value) {
-  if (category === 'fishes') return PRICES.fishes[value] || 20;
-  if (category === 'money') return parseInt(value.split('_')[0]) * PRICES.money;
-  if (category === 'relics') return (parseInt(value.split('_')[0]) / 100) * PRICES.relics;
-  if (category === 'totems') return (parseInt(value.split('_')[0]) / 5) * PRICES.totems;
-  if (category === 'rods') return PRICES.rods[value] || 50;
-  return 20;
-}
-
 function calculateDollarAmount(robux) {
-  return (robux * 0.0125).toFixed(2);
+  return (robux / 20 * 0.25).toFixed(2);
 }
 
 function getRobuxLink(robux) {
-  const GAMEPASS_LINKS = {
-    5: 'https://www.roblox.com/game-pass/31127384/Donate',
-    7: 'https://www.roblox.com/game-pass/31127094/Donate',
-    10: 'https://www.roblox.com/game-pass/31127528/Donate',
-    15: 'https://www.roblox.com/game-pass/31127845/Donate',
-    20: 'https://www.roblox.com/game-pass/1027394973/40',
-    30: 'https://www.roblox.com/game-pass/1033147082/30',
-    40: 'https://www.roblox.com/game-pass/1027394973/40',
-    50: 'https://www.roblox.com/game-pass/1031209691/50',
-    55: 'https://www.roblox.com/game-pass/1031209691/50',
-    60: 'https://www.roblox.com/game-pass/1033311218/60',
-    100: 'https://www.roblox.com/game-pass/31588015/Big-Donation',
-    200: 'https://www.roblox.com/game-pass/1028527085/200',
-    300: 'https://www.roblox.com/game-pass/1032509615/300',
-    400: 'https://www.roblox.com/game-pass/1027496860/400'
-  };
-  if (robux >= 400) return GAMEPASS_LINKS[400];
-  return GAMEPASS_LINKS[robux] || GAMEPASS_LINKS[50];
+  if (robux <= 20) return 'https://www.roblox.com/game-pass/1044850980/20';
+  if (robux <= 40) return 'http://www.roblox.com/game-pass/1027394973/40';
+  return 'https://www.roblox.com/game-pass/1031209691/50';
 }
 
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-client.on('messageCreate', async (message) => {
+client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
-  if (message.content === '!fischshop') {
+  if (message.content === '!deadrails') {
     if (message.author.id !== GUEDX_ID) {
-      await message.reply("You are not authorized to use this command.");
+      await message.reply('I only take orders from my sugar daddy.');
       return;
     }
 
@@ -142,92 +54,202 @@ client.on('messageCreate', async (message) => {
     const row = new ActionRowBuilder().addComponents(button);
 
     await message.channel.send({
-      content: `🎣 Welcome to the Fisch Shop! 🎣
-We sell fishes, rods, money, relics, and aurora totems.
-💸 Prices will appear once you select your products.
-📦 Click the button below to select a category and start buying.`,
+      content: `🚂 **Welcome to the Dead Rails Shop!** 🚂
+
+Discover the best classes and trains to boost your in-game experience.  
+Payments are made via LTC or Robux. The *"Everything in-game"* bundle gives you full access to all items in the game for only 50 Robux!
+
+💸 **Special promotions:**  
+- If your order goes higher than 40 Robux, the price is automatically set to 50, and you can get anything as an additional for no extra cost.
+- Orders that hit exactly 40 Robux pay the full 40 Robux with a dedicated payment link.  
+- Orders below 40 Robux pay the normal total based on selected items.
+
+📦 Click the button below to select your products and have a great day!`,
       components: [row]
     });
   }
 });
 
-client.on('interactionCreate', async (interaction) => {
+client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     if (interaction.customId === 'open_menu') {
       const menu = new StringSelectMenuBuilder()
         .setCustomId('category_select')
         .setPlaceholder('Choose a category')
-        .addOptions(categories);
+        .addOptions([
+          { label: 'Classes', value: 'classes', emoji: '⚔️' },
+          { label: 'Trains', value: 'trains', emoji: '🚂' },
+          { label: 'Everything', value: 'everything', emoji: '🧾' }
+        ]);
+
       const row = new ActionRowBuilder().addComponents(menu);
-      await interaction.reply({ content: 'Select a category:', components: [row], ephemeral: true });
+      await interaction.reply({ content: 'Select a category below:', components: [row], ephemeral: true });
     }
 
     if (interaction.customId === 'close_ticket') {
       const channel = interaction.channel;
       await interaction.reply({ content: '✅ Ticket will be closed.', ephemeral: true });
-
-      userTickets.forEach((channelId, userId) => {
-        if (channelId === channel.id) {
+      userTickets.forEach((chId, userId) => {
+        if (chId === channel.id) {
           userTickets.delete(userId);
           userOrders.delete(userId);
           userItems.delete(userId);
           userEmbeds.delete(userId);
         }
       });
-
       await channel.delete();
     }
 
     if (interaction.customId === 'copy_ltc') {
-      await interaction.reply({ content: `Copy this LTC address:\n\`${LTC_ADDRESS}\``, ephemeral: true });
+      await interaction.reply({
+        content: `Click the key to copy:\n\`${LTC_ADDRESS}\``,
+        ephemeral: true
+      });
     }
   }
 
   if (interaction.isStringSelectMenu()) {
-    if (interaction.customId === 'category_select') {
+    const selectedId = interaction.customId;
+
+    if (selectedId === 'category_select') {
       const selectedCategory = interaction.values[0];
-      const menu = new StringSelectMenuBuilder()
-        .setCustomId('product_select')
-        .setPlaceholder(`Select a product from ${selectedCategory}`)
-        .addOptions(products[selectedCategory]);
-      const row = new ActionRowBuilder().addComponents(menu);
-      await interaction.update({ content: `Select a product from ${selectedCategory}:`, components: [row] });
-    }
 
-    else if (interaction.customId === 'product_select') {
-      const user = interaction.user;
-      const guild = interaction.guild;
-      const selectedProduct = interaction.values[0];
+      if (selectedCategory === 'everything') {
+        const user = interaction.user;
+        const guild = interaction.guild;
 
-      const displayName = selectedProduct.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      const category = Object.keys(products).find(cat => products[cat].some(p => p.value === selectedProduct));
-      const price = getPrice(category, selectedProduct);
+        const total = 50;
+        const usd = calculateDollarAmount(total);
+        const robuxLink = getRobuxLink(total);
 
-      let currentItems = userItems.get(user.id) || [];
+        const embed = {
+          title: '🛒 Order Summary',
+          description: `🧾 Everything in-game = 50 robux\n\n📦 **Total:** 50 robux ($${usd})`,
+          color: 0x00b0f4
+        };
 
-      // Prevent duplicates
-      if (currentItems.find(p => p.name === displayName)) {
-        await interaction.update({ content: `⚠️ You already added **${displayName}**. Remove it before adding again.`, components: [] });
+        const paymentEmbed = {
+          title: '💳 Payment Information',
+          description: `
+⚠️ **Please wait for support to arrive before making the payment!**
+
+**Payment methods below**
+🔸 **For LTC:** \`${LTC_ADDRESS}\`
+🔸 **For Robux:** [Click here to buy Everything for 50 Robux](${robuxLink})
+
+🔸 **Coin:** Litecoin (LTC)  
+🔸 **Network:** LTC Mainnet  
+💬 **Support will be here in 1–2 minutes to assist you.`,
+          color: 0xffd700,
+          thumbnail: { url: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png' }
+        };
+
+        const closeButton = new ButtonBuilder()
+          .setCustomId('close_ticket')
+          .setLabel('Close Ticket')
+          .setStyle(ButtonStyle.Danger);
+
+        const copyLTCButton = new ButtonBuilder()
+          .setCustomId('copy_ltc')
+          .setLabel('Copy LTC Address')
+          .setStyle(ButtonStyle.Secondary);
+
+        const buttonsRow = new ActionRowBuilder().addComponents(closeButton, copyLTCButton);
+
+        const channel = await guild.channels.create({
+          name: `ticket-${user.username}`,
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            { id: guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
+            { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: GUEDX_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+          ]
+        });
+
+        const message = await channel.send({
+          content: `<@${GUEDX_ID}>`,
+          embeds: [embed, paymentEmbed],
+          components: [buttonsRow]
+        });
+
+        userTickets.set(user.id, channel.id);
+        userEmbeds.set(user.id, message.id);
+
+        await interaction.update({ content: '✅ Ticket created for Everything access!', components: [] });
         return;
       }
 
-      currentItems.push({ name: displayName, emoji: products[category].find(p => p.value === selectedProduct).emoji, price });
-      userItems.set(user.id, currentItems);
+      // Classes and trains options
+      const classOptions = [
+        { label: 'Musician', emoji: '🎵' }, { label: 'Miner', emoji: '⛏️' }, { label: 'Doctor', emoji: '🩺' },
+        { label: 'Arsonist', emoji: '🔥' }, { label: 'Packmaster', emoji: '📦' }, { label: 'Necromancer', emoji: '💀' },
+        { label: 'Conductor', emoji: '🎼' }, { label: 'Werewolf', emoji: '🐺' }, { label: 'The Alamo', emoji: '🏰' },
+        { label: 'High Roller', emoji: '🎲' }, { label: 'Cowboy', emoji: '🤠' }, { label: 'Hunter', emoji: '🏹' },
+        { label: 'Milkman', emoji: '🥛' }, { label: 'Demolitionist', emoji: '💣' }, { label: 'Survivalist', emoji: '🪖' },
+        { label: 'Priest', emoji: '✝️' }, { label: 'Zombie', emoji: '🧟' }, { label: 'Vampire', emoji: '🧛' },
+        { label: 'President', emoji: '🇺🇸' }, { label: 'Ironclad', emoji: '🛡️' }
+      ];
 
-      let total = currentItems.reduce((sum, i) => sum + i.price, 0);
-      if (currentItems.length > 3) total = 50;  // Promo fix price
+      const trainOptions = [
+        { label: 'Cattle Car', emoji: '🐄' }, { label: 'Gold Rush', emoji: '🏆' }, { label: 'Passenger Train', emoji: '🚆' },
+        { label: 'Armored Train', emoji: '🚋' }, { label: 'Ghost Train', emoji: '👻' }, { label: 'Wooden Train', emoji: '🪵' }
+      ];
+
+      const makeOptions = (options) =>
+        options.map(opt => ({
+          label: opt.label,
+          value: opt.label.toLowerCase().replace(/ /g, '_'),
+          emoji: opt.emoji
+        }));
+
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('product_select')
+        .setPlaceholder(`Choose a ${selectedCategory === 'classes' ? 'class' : 'train'}`)
+        .addOptions(selectedCategory === 'classes' ? makeOptions(classOptions) : makeOptions(trainOptions));
+
+      const row = new ActionRowBuilder().addComponents(menu);
+      await interaction.update({ content: 'Select a product below:', components: [row] });
+    }
+
+    if (selectedId === 'product_select') {
+      const user = interaction.user;
+      const guild = interaction.guild;
+      const selectedProduct = interaction.values[0];
+      const displayName = selectedProduct.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+      // Default price per product
+      const pricePerItem = 20;
+
+      const prevList = userItems.get(user.id) || [];
+
+      // Check if item already exists, increase quantity if yes
+      const itemIndex = prevList.findIndex(p => p.name === displayName);
+      if (itemIndex >= 0) {
+        prevList[itemIndex].quantity += 1;
+      } else {
+        prevList.push({ name: displayName, emoji: '🛒', price: pricePerItem, quantity: 1 });
+      }
+      userItems.set(user.id, prevList);
+
+      // Calculate total price with promo rules
+      let total = prevList.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      if (prevList.length > 3) total = 50; // Promo: 4+ distinct items caps price at 50
 
       const usd = calculateDollarAmount(total);
       userOrders.set(user.id, total);
       const robuxLink = getRobuxLink(total);
 
-      const productListText = currentItems.map(i => `${i.emoji} ${i.name} = ${i.price} robux`).join('\n');
-      let promoNote = '';
-      if (currentItems.length > 3) promoNote = `💸 **Promo:** You bought more than 3 products, so the total price is fixed at 50 Robux!`;
-      else if (total > 40) promoNote = `💸 **Promo:** Your total passed 40 Robux, so the 50 Robux payment link is used.`;
-      else if (total === 40) promoNote = `💸 **Tier:** Your total is exactly 40 Robux, using the 40 Robux link.`;
+      // Build product list text with quantities
+      const productListText = prevList
+        .map(p => `${p.emoji} ${p.name} x${p.quantity} = ${p.price * p.quantity} robux`)
+        .join('\n');
 
-      const orderEmbed = {
+      let promoNote = '';
+      if (prevList.length > 3) promoNote = `💸 **Promo:** You bought more than 3 distinct products, total fixed at 50 Robux!`;
+      else if (total > 40) promoNote = `💸 **Promo:** Total passed 40 Robux, 50 Robux payment link is used.`;
+      else if (total === 40) promoNote = `💸 **Tier:** Total is exactly 40 Robux, using the 40 Robux link.`;
+
+      const embed = {
         title: '🛒 Order Summary',
         description: `${productListText}\n\n📦 **Total:** ${total} robux ($${usd})\n${promoNote}`,
         color: 0x00b0f4
@@ -238,9 +260,9 @@ client.on('interactionCreate', async (interaction) => {
         description: `
 ⚠️ **Please wait for support to arrive before making the payment!**
 
-**Payment methods below**  
-🔸 **For LTC:** \`${LTC_ADDRESS}\`  
-🔸 **For Robux:** [Click here to pay ${total} Robux](${robuxLink})
+**Payment methods below**
+🔸 **For LTC:** \`${LTC_ADDRESS}\`
+🔸 **For Robux:** [Click here to buy your order for ${total} Robux](${robuxLink})
 
 🔸 **Coin:** Litecoin (LTC)  
 🔸 **Network:** LTC Mainnet  
@@ -261,7 +283,6 @@ client.on('interactionCreate', async (interaction) => {
 
       const buttonsRow = new ActionRowBuilder().addComponents(closeButton, copyLTCButton);
 
-      // Check if user has ticket channel
       const existingChannelId = userTickets.get(user.id);
       const existingChannel = existingChannelId ? guild.channels.cache.get(existingChannelId) : null;
 
@@ -269,14 +290,20 @@ client.on('interactionCreate', async (interaction) => {
         try {
           const embedMsgId = userEmbeds.get(user.id);
           const embedMsg = await existingChannel.messages.fetch(embedMsgId);
-          await embedMsg.edit({ embeds: [orderEmbed, paymentEmbed], components: [buttonsRow] });
-          await interaction.update({ content: '✅ Product added to your order!', components: [] });
-        } catch {
-          await interaction.update({ content: '⚠️ Error updating your ticket. Please contact support.', components: [] });
+
+          await embedMsg.edit({ embeds: [embed, paymentEmbed], components: [buttonsRow] });
+          await interaction.update({ content: '✅ Product quantity updated in your order!', components: [] });
+        } catch (err) {
+          // If message or channel deleted, remove references and create new ticket
+          userTickets.delete(user.id);
+          userEmbeds.delete(user.id);
+          userItems.delete(user.id);
+          userOrders.delete(user.id);
+          await interaction.followUp({ content: '❌ Previous ticket not found. Please select the product again to create a new ticket.', ephemeral: true });
         }
       } else {
-        // Create ticket channel
-        const ticketChannel = await guild.channels.create({
+        // Create new ticket channel and message
+        const channel = await guild.channels.create({
           name: `ticket-${user.username}`,
           type: ChannelType.GuildText,
           permissionOverwrites: [
@@ -286,19 +313,18 @@ client.on('interactionCreate', async (interaction) => {
           ]
         });
 
-        const ticketMessage = await ticketChannel.send({
+        const message = await channel.send({
           content: `<@${GUEDX_ID}>`,
-          embeds: [orderEmbed, paymentEmbed],
+          embeds: [embed, paymentEmbed],
           components: [buttonsRow]
         });
 
-        userTickets.set(user.id, ticketChannel.id);
-        userEmbeds.set(user.id, ticketMessage.id);
+        userTickets.set(user.id, channel.id);
+        userEmbeds.set(user.id, message.id);
 
         await interaction.update({ content: '✅ Ticket created and product added!', components: [] });
       }
 
-      // Ask for more purchases
       const moreMenu = new StringSelectMenuBuilder()
         .setCustomId('additional_purchase')
         .setPlaceholder('Anything else?')
@@ -311,16 +337,21 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.followUp({ content: 'Do you want to purchase anything else?', components: [moreRow], ephemeral: true });
     }
 
-    else if (interaction.customId === 'additional_purchase') {
-      if (interaction.values[0] === 'no') {
+    if (selectedId === 'additional_purchase') {
+      const choice = interaction.values[0];
+      if (choice === 'no') {
         await interaction.update({ content: '✅ Your ticket has been successfully created!', components: [] });
       } else {
         const menu = new StringSelectMenuBuilder()
           .setCustomId('category_select')
           .setPlaceholder('Choose a category')
-          .addOptions(categories);
+          .addOptions([
+            { label: 'Classes', value: 'classes', emoji: '⚔️' },
+            { label: 'Trains', value: 'trains', emoji: '🚂' },
+            { label: 'Everything', value: 'everything', emoji: '🧾' }
+          ]);
         const row = new ActionRowBuilder().addComponents(menu);
-        await interaction.update({ content: 'Select a category:', components: [row] });
+        await interaction.update({ content: 'Select a category below:', components: [row] });
       }
     }
   }
