@@ -21,15 +21,14 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-const GUEDX_ID = '955969285686181898'; // Support user ID
+const GUEDX_ID = '955969285686181898';
 const LTC_ADDRESS = 'ltc1qr3lqtfc4em5mkfjrhjuh838nnhnpswpfxtqsu8';
 
-const userTickets = new Map(); // userId => channelId
-const userOrders = new Map();  // userId => totalPrice (Robux)
-const userItems = new Map();   // userId => [{name, emoji, price}]
-const userEmbeds = new Map();  // userId => messageId of ticket embed
+const userTickets = new Map();
+const userOrders = new Map();
+const userItems = new Map();
+const userEmbeds = new Map();
 
-// Prices - "To be applied" placeholder for now
 const PRICES = {
   fishes: 20,
   money: 20,
@@ -38,13 +37,11 @@ const PRICES = {
   rods: 20
 };
 
-// Money options (labels only, prices TBD)
 const moneyOptions = [
   '1 Million', '5 Million', '10 Million', '20 Million',
   '30 Million', '40 Million', '50 Million'
 ];
 
-// Category options
 const categories = [
   { label: 'Fishes', value: 'fishes', emoji: '🐟' },
   { label: 'Money', value: 'money', emoji: '💰' },
@@ -53,7 +50,6 @@ const categories = [
   { label: 'Aurora Totems', value: 'totems', emoji: '🪔' }
 ];
 
-// Product lists
 const products = {
   fishes: [
     'SS Nessie', 'SS Phantom Megalodon', 'Megalodon', 'Ancient Megalodon',
@@ -82,7 +78,7 @@ client.once('ready', () => {
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
-  if (message.content === '!fisch') {
+  if (message.content === '!fischshop') {
     const button = new ButtonBuilder()
       .setCustomId('open_menu')
       .setLabel('Select Your Product')
@@ -94,16 +90,14 @@ client.on('messageCreate', async message => {
       content:
 `🎣 **Welcome to the Fisch Shop!** 🎣
 
-We sell fishes, rods, money, relics, aurora totems, and more.  
-**We don’t do levels or adventure hype — just straightforward trading.**
+We sell fishes, rods, money and everything else.
+No nonsense, no levels — just clean trading.
 
 📦 Click the button below to select your category and start buying.`,
       components: [row]
     });
   }
 });
-
-// ...rest of the code remains unchanged
 
 client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
@@ -114,7 +108,6 @@ client.on('interactionCreate', async interaction => {
         .addOptions(categories);
 
       const row = new ActionRowBuilder().addComponents(menu);
-
       await interaction.reply({ content: 'Select a category:', components: [row], ephemeral: true });
     }
 
@@ -151,7 +144,6 @@ client.on('interactionCreate', async interaction => {
       const guild = interaction.guild;
 
       if (selectedCategory === 'money') {
-        // Money menu options
         const moneyMenuOptions = moneyOptions.map(label => ({
           label,
           value: label.toLowerCase().replace(/ /g, '_'),
@@ -164,12 +156,10 @@ client.on('interactionCreate', async interaction => {
           .addOptions(moneyMenuOptions);
 
         const row = new ActionRowBuilder().addComponents(moneyMenu);
-
         await interaction.update({ content: 'Select the money amount:', components: [row] });
         return;
       }
 
-      // Other categories
       const list = products[selectedCategory] || [];
 
       const options = list.map(label => ({
@@ -187,7 +177,6 @@ client.on('interactionCreate', async interaction => {
         .addOptions(options);
 
       const row = new ActionRowBuilder().addComponents(menu);
-
       await interaction.update({ content: `Select a ${selectedCategory.slice(0, -1)}:`, components: [row] });
     }
 
@@ -197,7 +186,6 @@ client.on('interactionCreate', async interaction => {
       const selectedProduct = interaction.values[0];
       const displayName = selectedProduct.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-      // Price is always 20 Robux for now, except money options (keep 20 as placeholder)
       const productPrice = 20;
 
       const productEntry = { name: displayName, emoji: '🛒', price: productPrice };
@@ -205,11 +193,9 @@ client.on('interactionCreate', async interaction => {
       const newList = [...prevList, productEntry];
       userItems.set(user.id, newList);
 
-      // Calculate total price
       let total = newList.reduce((sum, item) => sum + item.price, 0);
       userOrders.set(user.id, total);
 
-      // No real payment links yet, just placeholders
       const robuxLink = toRobuxLinkPlaceholder();
 
       const productListText = newList.map(p => `${p.emoji} ${p.name} = ${formatPrice(p.price)}`).join('\n');
@@ -223,8 +209,7 @@ client.on('interactionCreate', async interaction => {
       const paymentEmbed = {
         title: '💳 Payment Information',
         description:
-`⚠️ Warning: I only provide fishes for you to sell for rod values and required items.  
-Please wait for support before paying.
+`Please wait for support before paying.
 
 **Payment methods:**  
 🔸 LTC: \`${LTC_ADDRESS}\`  
@@ -288,7 +273,6 @@ Support will join in 1–2 minutes.`,
         ]);
 
       const moreRow = new ActionRowBuilder().addComponents(moreMenu);
-
       await interaction.followUp({ content: 'Do you want to purchase anything else?', components: [moreRow], ephemeral: true });
     }
 
