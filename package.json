@@ -1,0 +1,16 @@
+{
+  "name": "fisch-shop-bot",
+  "version": "1.0.0",
+  "description": "Discord bot shop for Fisch game",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.21.0",
+    "dotenv": "^16.3.1"
+  }
+}
