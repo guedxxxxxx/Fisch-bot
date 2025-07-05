@@ -175,11 +175,17 @@ client.on('messageCreate', async message => {
       .setStyle(ButtonStyle.Primary);
     const row = new ActionRowBuilder().addComponents(button);
     await message.channel.send({
-      content: `🎉 Welcome to Guedx’s Fisch Store! 🎉
+      content: `🎉 **Welcome to Guedx’s Fisch Store!** 🎉
 
-🐟✨ Here, your fishing adventure begins!
+🐟✨ Here, your fishing adventure begins! Dive into the ultimate marketplace where you can get:
 
-💸 Payments accepted: LTC, Robux! ✅
+• 🐠 **Fishes** – Collect the rarest and most colorful catches!  
+• 💎 **Relics** – Unearth ancient treasures to boost your fishing skills!  
+• 🪐 **Aurora Totems** – Summon magical powers for epic fishing sessions!  
+• 🎣 **Rods** – Upgrade your gear with the best rods for every occasion!  
+• 💵 **Money** – Stock up to buy everything you need!
+
+💸 **Payments accepted:** LTC, Robux! ✅
 
 👇 Click the button below to start purchasing!`,
       components: [row]
