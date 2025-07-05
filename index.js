@@ -273,7 +273,11 @@ client.on('interactionCreate', async interaction => {
       };
 
       const robuxLinks = getGamepassLinksForPrice(total);
-      const robuxLinksFormatted = robuxLinks.map(link => `[Buy Gamepass](${link})`).join('\n');
+      const robuxLinksFormatted = robuxLinks.map(link => {
+  const priceEntry = Object.entries(GAMEPASS_LINKS).find(([, links]) => links.includes(link));
+  const price = priceEntry ? priceEntry[0] : '?';
+  return `[${price} Robux Pass](${link})`;
+}).join('\n');
 
       const paymentEmbed = {
         title: '💳 Payment Information',
